@@ -345,6 +345,12 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
         self.write_contents_to_path("\n".join(self.create_floorplan_tcl()), floorplan_tcl)
         self.verbose_append("source -echo -verbose {}".format(floorplan_tcl))
 
+        # TODO(sunjin) added
+        # Apply any custom floorplan constraints (region, fence, etc)
+        if len(self.get_setting("par.innovus.custom_fp_constr")) > 0:
+            for constr in self.get_setting("par.innovus.custom_fp_constr"):
+                self.verbose_append(f"{constr}")
+
         # Set "don't use" cells.
         # This must happen after floorplan_design because it must run in flattened-mode
         # (after ILMs are placed)
@@ -435,7 +441,6 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
             if const.type == PlacementConstraintType.TopLevel:
                 topconst = const
         if topconst is None:
-            # import pdb; pdb.set_trace()
             self.logger.fatal("Cannot find top-level constraints to place pins")
             return False
 
@@ -530,6 +535,11 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
 
                 self.verbose_append(" ".join(cmd))
 
+        # TODO(sunjin) added
+        if len(self.get_setting("par.innovus.custom_place_pins_routines")) > 0:
+            for routine in self.get_setting("par.innovus.custom_place_pins_routines"):
+                self.append(f"{routine}")
+
         # In case the * wildcard is used after preplaced pins, this will put back the promoted pins correctly.
         self.verbose_append("if {[llength $all_ppins] ne 0} {assign_io_pins -move_fixed_pin -pins [get_db $all_ppins .net.name]}")
 
@@ -553,6 +563,7 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
                 exit 2
             }
             ''', clean=True)
+
         if self.hierarchical_mode.is_nonleaf_hierarchical():
             self.verbose_append('''
             flatten_ilm
@@ -568,7 +579,12 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
 
     def clock_tree(self) -> bool:
         """Setup and route a clock tree for clock nets."""
-        if len(self.get_clock_ports()) > 0 or len(self.get_setting("vlsi.inputs.custom_sdc_files")) > 0:
+        # if len(self.get_clock_ports()) > 0 or len(self.get_setting("vlsi.inputs.custom_sdc_files")) > 0:
+
+        has_clock_port = len(self.get_clock_ports()) > 0
+        has_custom_sdc_file = len(self.get_setting("vlsi.inputs.custom_sdc_files")) > 0
+        has_custom_sdc_constr = len(self.get_setting("vlsi.inputs.custom_sdc_constraints")) > 0
+        if has_clock_port or has_custom_sdc_file or has_custom_sdc_constr:
             # Fix fanout load violations
             self.verbose_append("set_db opt_fix_fanout_load true")
             # Ignore clock tree when there are no clocks
@@ -586,6 +602,12 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
             if len(logic_cells) > 0:
                 self.append(f"set_db cts_logic_cells {{{' '.join(logic_cells[0].name)}}}")
             self.verbose_append("create_clock_tree_spec")
+        
+            # TODO(sunjin) added
+            if len(self.get_setting("par.innovus.custom_cts_routines")) > 0:
+                for cts_routine in self.get_setting("par.innovus.custom_cts_routines"):
+                    self.verbose_append(f"{cts_routine}")
+
             if self.version() >= self.version_number("221"):
                 # Required for place_opt_design v2 (POD-Turbo)
                 if bool(self.get_setting("par.innovus.use_cco")):
@@ -749,12 +771,21 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
         self.verbose_append("set_db opt_signoff_fix_data_drv true")
         self.verbose_append("set_db opt_signoff_fix_clock_drv true")
 
+        # TODO(sunjin) added
+        self.verbose_append("set_db opt_signoff_allow_skewing true")
+
         # Signoff timing requires remote host setting
         self.verbose_append(f"set_multi_cpu_usage -remote_host 1 -cpu_per_remote_host {self.get_setting('vlsi.core.max_threads')}")
-        self.verbose_append("time_design_signoff")
-
-        # Run
-        self.verbose_append("opt_signoff -all")
+        # self.verbose_append("time_design_signoff")
+    
+        # TODO(sunjin) added
+        self.verbose_append("time_design_signoff -report_dir ./my_signoff -report_prefix pre_signoff_")
+        self.verbose_append("opt_signoff -drv -no_eco_route -report_dir ./my_signoff -report_prefix post_signoff_drv")
+        self.verbose_append("opt_signoff -setup -no_eco_route -report_dir ./my_signoff -report_prefix post_signoff_setup")
+        self.verbose_append("opt_signoff -hold -report_dir ./my_signoff -report_prefix post_signoff_hold")
+    
+        # # Run
+        # self.verbose_append("opt_signoff -all")
 
         if self.hierarchical_mode.is_nonleaf_hierarchical():
             self.verbose_append("unflatten_ilm")
@@ -776,6 +807,14 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
         # Output the Verilog netlist for the design and include physical cells (-phys) like decaps and fill
         self.verbose_append("write_netlist {netlist} -top_module_first -top_module {top} -exclude_leaf_cells -phys -flat -exclude_insts_of_cells {{ {pcells} }} ".format(
             netlist=self.output_netlist_filename,
+            top=self.top_module,
+            pcells=" ".join(self.get_physical_only_cells())
+        ))
+
+        # TODO(sunjin) added for experiment
+        # Output the Verilog netlist for the design and include physical cells (-phys) like decaps and fill
+        self.verbose_append("write_netlist {netlist} -top_module_first -top_module {top} -flatten_bus -exclude_leaf_cells -phys -flat -exclude_insts_of_cells {{ {pcells} }} ".format(
+            netlist=self.output_netlist_filename.replace(".lvs.v", ".flattened.lvs.v"),
             top=self.top_module,
             pcells=" ".join(self.get_physical_only_cells())
         ))
@@ -1047,17 +1086,15 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
             "-files", par_tcl_filename
         ]
 
-        # TODO(sunjin) added
-        if self.get_setting("debug.innovus.write_script_only"):
-            run_script = f"{self.run_dir}/run_innovus.sh"
-            with open(run_script, "w") as f:
-                f.write(f"""#!/bin/bash
-        source enter        
-        {self.get_setting('par.innovus.innovus_bin')} -win -common_ui -files {par_tcl_filename}
-                """
-                )
-            os.chmod(run_script, 0o755)
-            return True
+        # TODO(sunjin): added for debugging
+        run_script = f"{self.run_dir}/run_innovus.sh"
+        with open(run_script, "w") as f:
+            f.write(f"""#!/bin/bash
+    source enter        
+    {self.get_setting('par.innovus.innovus_bin')} -win -common_ui -files {par_tcl_filename}
+            """
+            )
+        os.chmod(run_script, 0o755)
 
         # Temporarily disable colours/tag to make run output more readable.
         # TODO: think of a more elegant way to do this?
