@@ -76,6 +76,10 @@ class VCS(HammerSimTool, SynopsysTool):
         v["VCS_HOME"] = self.get_setting("sim.vcs.vcs_home")
         v["VERDI_HOME"] = self.get_setting("sim.vcs.verdi_home")
         v["SNPSLMD_LICENSE_FILE"] = self.get_setting("synopsys.SNPSLMD_LICENSE_FILE")
+
+        # TODO(sunjin) hack
+        v["BASE_TEST_DIR"] = self.get_setting("sim.inputs.base_test_dir")
+
         return v
 
     def get_verilog_models(self) -> List[str]:
@@ -125,7 +129,7 @@ class VCS(HammerSimTool, SynopsysTool):
           self.logger.error("VCS binary not found as expected at {0}".format(vcs_bin))
           return False
 
-        if not self.check_input_files([".v", ".v.gz", ".sv", ".so", ".cc", ".c"]):
+        if not self.check_input_files([".v", ".v.gz", ".sv", ".so", ".cc", ".c", ".svh"]):
           return False
 
         # We are switching working directories and we still need to find paths
@@ -206,6 +210,22 @@ class VCS(HammerSimTool, SynopsysTool):
 
         # Add systemverilog mode
         args.extend(["-sverilog"])
+
+        # TODO(sunjin) added
+        incdir_args = self.get_setting("sim.inputs.incdirs", [])
+        # should be in format of "+incdir+<dir1>+<dir2>+..."
+        if incdir_args:
+            incdir_str = "+incdir+" + "+".join(incdir_args)
+            args.extend([incdir_str])
+
+        define_args = self.get_setting("sim.inputs.defines", [])
+        # should be in format of "+define+<macro> +define+<macro> ..."
+        define_str = "+".join(["+define+" + define for define in define_args])
+        args.extend([define_str])
+
+        # TODO(sunjin) added
+        if self.get_setting("sim.vcs.kdb", False):
+            args.extend(["-kdb"])
 
         if tb_name != "":
             args.extend(["-top", tb_name])
@@ -297,7 +317,11 @@ class VCS(HammerSimTool, SynopsysTool):
 
         if self.level.is_gatelevel():
             find_regs_run_tcl = []
-            find_regs_run_tcl.append("source " + force_regs_filename)
+
+            # TODO(sunjin) added
+            if self.get_setting("sim.inputs.x_pessimism", True):
+                find_regs_run_tcl.append("source " + force_regs_filename)
+            # find_regs_run_tcl.append("source " + force_regs_filename)
             if saif_mode != "none":
                 stime: Optional[TimeValue] = None
                 if saif_mode == "time":
