@@ -436,6 +436,9 @@ vlsi.inputs:
     # A depth of 0 or less will perform no path shortening.
     # type: int
 
+# TODO(sunjin) added
+vlsi.manual_dependencies: {}
+
 vlsi.submit:
   command: "local" # The submit command to use. "none", "local", or null will run on the current host. "lsf" and "slurm" are also supported.
   # See hammer/vlsi/submit_command.py for all options and their associated settings.
