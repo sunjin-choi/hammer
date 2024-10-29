@@ -1421,6 +1421,7 @@ class HammerTool(metaclass=ABCMeta):
                             "Pins {p} assigned layers {l} that do not match the direction of their side {s}. This is very likely to cause issues.".format(
                                 p=pin.pins, l=pin.layers, s=pin.side))
             assigns.append(pin)
+        # import pdb; pdb.set_trace()
         return assigns
 
     def get_gds_map_file(self) -> Optional[str]:

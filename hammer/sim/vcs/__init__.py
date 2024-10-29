@@ -204,6 +204,9 @@ class VCS(HammerSimTool, SynopsysTool):
             args.extend(["+delay_mode_zero"])
 
 
+        # Add systemverilog mode
+        args.extend(["-sverilog"])
+
         if tb_name != "":
             args.extend(["-top", tb_name])
 

@@ -258,6 +258,7 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
             pass
         else:
             raise NotImplementedError("HierarchicalMode not implemented: " + str(self.hierarchical_mode))
+
         return self.make_steps_from_methods(steps + write_design_step)
 
     def tool_config_prefix(self) -> str:
@@ -434,6 +435,7 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
             if const.type == PlacementConstraintType.TopLevel:
                 topconst = const
         if topconst is None:
+            # import pdb; pdb.set_trace()
             self.logger.fatal("Cannot find top-level constraints to place pins")
             return False
 
@@ -1044,6 +1046,18 @@ class Innovus(HammerPlaceAndRouteTool, CadenceTool):
             "-common_ui",
             "-files", par_tcl_filename
         ]
+
+        # TODO(sunjin) added
+        if self.get_setting("debug.innovus.write_script_only"):
+            run_script = f"{self.run_dir}/run_innovus.sh"
+            with open(run_script, "w") as f:
+                f.write(f"""#!/bin/bash
+        source enter        
+        {self.get_setting('par.innovus.innovus_bin')} -win -common_ui -files {par_tcl_filename}
+                """
+                )
+            os.chmod(run_script, 0o755)
+            return True
 
         # Temporarily disable colours/tag to make run output more readable.
         # TODO: think of a more elegant way to do this?

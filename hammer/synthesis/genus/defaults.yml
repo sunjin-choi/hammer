@@ -15,5 +15,9 @@ synthesis.genus:
   # None:            Will result in the best runtime.  Works with all base Genus products.
   phys_flow_effort: "none"
 
+  # Added design flow effort
+  design_flow_effort: "standard"
+  design_power_effort: "low"  
+
   # Generate the TCL file but do not run it yet.
   generate_only: false

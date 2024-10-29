@@ -238,7 +238,7 @@ class Genus(HammerSynthesisTool, CadenceTool):
             verbose_append("quit")
 
         # Load input files and check that they are all Verilog.
-        if not self.check_input_files([".v", ".sv", "vh"]):
+        if not self.check_input_files([".v", ".sv", "vh", "svh"]):
             return False
         # We are switching working directories and Genus still needs to find paths.
         abspath_input_files = list(map(lambda name: os.path.join(os.getcwd(), name), self.input_files))  # type: List[str]
@@ -258,11 +258,13 @@ class Genus(HammerSynthesisTool, CadenceTool):
 
         # Elaborate/parse the RTL.
         verbose_append("elaborate {}".format(self.top_module))
+
         # Preserve submodules
         if self.hierarchical_mode.is_nonleaf_hierarchical():
             for ilm in self.get_input_ilms():
                 verbose_append("set_db module:{top}/{mod} .preserve true".format(top=self.top_module, mod=ilm.module))
-        verbose_append("init_design -top {}".format(self.top_module))
+        # verbose_append("init_design -top {}".format(self.top_module))
+        verbose_append("init_design")
 
         # Report timing constraint issues
         verbose_append("report_timing -lint -verbose")
@@ -428,7 +430,7 @@ set_db hinst:{inst} .preserve true
             #qor done by write_reports 
 
         # Write reports does not normally report unconstrained paths
-        self.verbose_append("report_timing -unconstrained -max_paths 50 > reports/final_unconstrained.rpt")
+        self.verbose_append("report_timing -unconstrained -max_paths 500 > reports/final_unconstrained.rpt")
 
         return True
 
@@ -495,6 +497,16 @@ set_db hinst:{inst} .preserve true
             "-f", syn_tcl_filename,
             "-no_gui"
         ]
+
+        # TODO(sunjin): added for debugging
+        run_script = f"{self.run_dir}/run_genus.sh"
+        with open(run_script, "w") as f:
+            f.write(f"""#!/bin/bash
+    source enter
+    {self.get_setting("synthesis.genus.genus_bin")} -f {syn_tcl_filename} -no_gui
+            """
+            )
+        os.chmod(run_script, 0o755)
 
         if bool(self.get_setting("synthesis.genus.generate_only")):
             self.logger.info("Generate-only mode: command-line is " + " ".join(args))

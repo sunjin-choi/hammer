@@ -166,9 +166,9 @@ class PinAssignment(NamedTuple('PinAssignment', [
         location = None  # type: Optional[Tuple[float, float]]
         if "location" in raw_assign:
             location_raw = raw_assign["location"]  # type: Union[List[float], Tuple[float, float]]
-            assert len(location_raw) == 2, "location must be a Optional[Tuple[float, float]]"
-            assert isinstance(location_raw[0], float), "location must be a Optional[Tuple[float, float]]"
-            assert isinstance(location_raw[1], float), "location must be a Optional[Tuple[float, float]]"
+            assert len(location_raw) == 2, f"location must be a Optional[Tuple[float, float]], got {raw_assign}"
+            assert isinstance(location_raw[0], float), f"location must be a Optional[Tuple[float, float]], got {raw_assign}"
+            assert isinstance(location_raw[1], float), f"location must be a Optional[Tuple[float, float]], got {raw_assign}"
             location = (location_raw[0], location_raw[1])
         if not semi_auto and location is not None:
             raise PinAssignmentSemiAutoError("location requires semi_auto")
