@@ -76,10 +76,6 @@ class VCS(HammerSimTool, SynopsysTool):
         v["VCS_HOME"] = self.get_setting("sim.vcs.vcs_home")
         v["VERDI_HOME"] = self.get_setting("sim.vcs.verdi_home")
         v["SNPSLMD_LICENSE_FILE"] = self.get_setting("synopsys.SNPSLMD_LICENSE_FILE")
-
-        # TODO(sunjin) hack
-        v["BASE_TEST_DIR"] = self.get_setting("sim.inputs.base_test_dir")
-
         return v
 
     def get_verilog_models(self) -> List[str]:
@@ -207,25 +203,6 @@ class VCS(HammerSimTool, SynopsysTool):
             args.extend(["+notimingcheck"])
             args.extend(["+delay_mode_zero"])
 
-
-        # Add systemverilog mode
-        args.extend(["-sverilog"])
-
-        # TODO(sunjin) added
-        incdir_args = self.get_setting("sim.inputs.incdirs", [])
-        # should be in format of "+incdir+<dir1>+<dir2>+..."
-        if incdir_args:
-            incdir_str = "+incdir+" + "+".join(incdir_args)
-            args.extend([incdir_str])
-
-        define_args = self.get_setting("sim.inputs.defines", [])
-        # should be in format of "+define+<macro> +define+<macro> ..."
-        define_str = "+".join(["+define+" + define for define in define_args])
-        args.extend([define_str])
-
-        # TODO(sunjin) added
-        if self.get_setting("sim.vcs.kdb", False):
-            args.extend(["-kdb"])
 
         if tb_name != "":
             args.extend(["-top", tb_name])
