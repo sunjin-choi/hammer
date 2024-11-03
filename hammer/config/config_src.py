@@ -228,6 +228,40 @@ def get_meta_directives() -> Dict[str, MetaDirective]:
                                                  target_settings=crossappendref_targets,
                                                  rename_target=crossappendref_rename)
 
+    # TODO(Sunjin): verify this directive
+    def crosschainref_decode(value: Any) -> Tuple[str, str]:
+        assert isinstance(value, list), "crosschainref takes a list of multiple elements"
+        for target_key in value:
+            assert isinstance(target_key, str), "crosschain target list setting must be a string"
+        return value
+
+    # crosschainref extends crossappendref to allow for multiple target settings.
+    def crosschainref_action(config_dict: dict, key: str, value: Any) -> None:
+        target_settings = crosschainref_decode(value)
+        config_dict[key] = reduce(lambda x, y: x + config_dict[y], target_settings, [])
+
+    def crosschainref_targets(key: str, value: Any) -> List[str]:
+        # target_setting, append_setting = crosschainref_decode(value)
+        # return [target_setting, append_setting]
+        return crosschainref_decode(value)
+
+    def crosschainref_rename(key: str, value: Any, target_setting: str, replacement_setting: str) -> Optional[
+        Tuple[Any, str]]:
+        # target, append = crosschainref_decode(value)
+
+        def replace_if_target_setting(setting: str) -> str:
+            """Helper function to replace the given setting with the
+            replacement if it is equal to target_setting."""
+            return replacement_setting if setting == target_setting else setting
+
+        # return [replace_if_target_setting(target),
+        #         replace_if_target_setting(append)], "crosschainref"
+        return list(map(replace_if_target_setting, value)), "crosschainref"
+
+    directives['crosschainref'] = MetaDirective(action=crosschainref_action,
+                                                 target_settings=crosschainref_targets,
+                                                 rename_target=crosschainref_rename)
+
     def prepend_action(config_dict: dict, key: str, value: Any) -> None:
         if key not in config_dict:
             config_dict[key] = []
